@@ -5,6 +5,8 @@
 
 struct board
 {
+    board(const char* turns="");
+    
     uint64_t filled { 0 };
     uint64_t possible { 0 };  // bitmask 0=not on this move 1=is an option for this move
     uint64_t colour { 0 };  // bitmask 0=blue 1=red
@@ -25,11 +27,10 @@ struct board
     inline uint8_t max_height() const {
         return heights[7];
     }
-    inline bool should_consider(uint8_t x) const {
-        return heights[x]<6;
+    inline bool full(uint8_t x) const {
+        return heights[x]==6;
     }
     
-    void init(const char* turns);
     void dump();
 };
 

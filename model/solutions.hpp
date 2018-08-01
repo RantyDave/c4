@@ -1,13 +1,22 @@
 #ifndef rate_hpp
 #define rate_hpp
 #include <cstdint>
+#include <climits>
 
 struct board;
+
+struct scoring_strategy
+{
+    int singles;
+    int doubles;
+    int trebles;
+};
 
 class solutions
 {
 public:
-    static int score(const board& board, int singles, int doubles, int trebles);
+    inline static int win(const board& board) {return score(board, "XXXX", INT_MAX);};
+    static int score(const board& board, const scoring_strategy& scores);
     
 private:
     static int score(const board& board, const char* pattern, int value);

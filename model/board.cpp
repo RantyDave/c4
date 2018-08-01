@@ -3,15 +3,8 @@
 
 using namespace std;
 
-// one off init, don't want to put it in the c'tor
-// because that would break bitwise copying
-void board::init(const char* turn="")
+board::board(const char* turn)
 {
-    // clear
-    filled=0;
-    colour=0;
-    possible=0;
-    
     // all the bottom locations are possible
     for (uint8_t x=0; x<7; x++) {
         possible |= bitfor(x, 0);
