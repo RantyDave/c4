@@ -7,7 +7,7 @@
 move_search::move_search()
 {
     //initialise the 8 different search orders
-    for (int iter=0; iter<9; iter++) {
+    for (int iter=0; iter<8; iter++) {
         bool picked[] {false, false, false, false, false, false, false, false};
         for (int pick=0; pick<7; pick++) {
             //keep trying until we pick an unused one
