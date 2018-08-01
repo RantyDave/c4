@@ -5,7 +5,7 @@
 
 struct board
 {
-    board(const char* turns="");
+    board(const char* turns=""); // copy c'tor is still bitwise
     
     uint64_t filled { 0 };
     uint64_t possible { 0 };  // bitmask 0=not on this move 1=is an option for this move

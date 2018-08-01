@@ -16,9 +16,11 @@ struct search_result
 class move_search
 {
 public:
-    static search_result move(bool blue, const board& prev, const scoring_strategy& scores, int depth=1);
+    move_search();
+    search_result move(bool blue, const board& prev, const scoring_strategy& scores, int depth=1);
 private:
-    static search_result no_brainer_from(bool blue, const board& prev, const scoring_strategy& scores);
+    search_result no_brainer_from(bool blue, const board& prev, const scoring_strategy& scores);
+    uint8_t search_order[8][8];
 };
 
 #endif /* search_hpp */

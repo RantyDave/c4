@@ -10,11 +10,12 @@ using namespace std;
 int main(int argc, const char * argv[]) {
     board brd;
     scoring_strategy scores {1, 2, 5};
+    move_search search;
     
     bool blue=false;
     for (int n=0; n<50; n++) {
         blue=!blue;
-        search_result res { move_search::move(blue, brd, scores, blue ? 1 : 3) };
+        search_result res { search.move(blue, brd, scores, blue ? 1 : 3) };
         brd.move(res.move, blue ? board::colour_blue : board::colour_red);
         brd.dump();
         
