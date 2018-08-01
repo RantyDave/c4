@@ -1,11 +1,14 @@
 #include <iostream>
 #include <cstdlib>
+#include <ctime>
 #include "search.hpp"
 #include "board.hpp"
 #include "solutions.hpp"
 
 move_search::move_search()
 {
+    srand(static_cast<unsigned int>(time(NULL)));
+    
     //initialise the 8 different search orders
     for (int iter=0; iter<8; iter++) {
         bool picked[] {false, false, false, false, false, false, false, false};
