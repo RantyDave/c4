@@ -32,14 +32,16 @@ public:
     ~search_tree();
     void options(score_options* in, uint32_t root_node_slot, bool blue, uint32_t depth=6);
     uint32_t prune_from(uint32_t node_slot, uint8_t except=99); // except describes which move we took, returns new root node_slot if except was specified
-    search_node* node_at(uint32_t node_slot) { return &nodes[node_slot]; }
+    inline search_node* node_at(uint32_t node_slot) { return &nodes[node_slot]; }
     void dump_from(uint32_t node_slot, uint32_t layer=0);
     
 private:
     void recurse_options(score_options* in, uint32_t root_node_slot, bool blue, uint32_t depth, int root_eval_move, uint32_t layer);
+    
+    // nodes are allocated from a fixed block of 1048576
     search_node* nodes;
-    uint8_t node_slot_available[1048576];
-    uint32_t last_slot_allocated { 0 };
+    uint8_t node_slot_available[1048576];  // individual byte flags for which slots have
+    uint32_t last_slot_allocated { 0 };  // as in, most recent
     uint32_t find_empty_slot();
 };
 

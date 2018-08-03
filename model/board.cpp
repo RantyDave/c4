@@ -3,25 +3,13 @@
 
 using namespace std;
 
-board::board(const char* turn)
+void board::move(uint8_t x, bool blue)
 {
-    // initial turns (for testing)
-    int red=false;
-    while (*turn!=0) {
-        int column=*turn-'0';
-        move(column, red ? colour_red : colour_blue);
-        red=!red;
-        ++turn;
-    }
-}
-
-void board::move(uint8_t x, bool blue) {
     // do the move
-    uint8_t y=heights[x]++;
-    uint64_t bit_x_y=bitfor(x, y);
-    uint64_t col=blue ? board::colour_blue : board::colour_red;
+    uint8_t y=heights[x]++;  // increment height of the column
+    uint64_t bit_x_y=bitfor(x, y);  // get a single bit that is used as a mask
     filled |= bit_x_y;          // set the filled bit
-    colour |= (col & bit_x_y);  // set the colour bit
+    if (!blue) colour |= bit_x_y;  // (optionally) set the colour bit
     heights[7] = max(heights[x], heights[7]);
 }
 
@@ -76,9 +64,9 @@ int board::score()
             }
         }
     }
-    
     return 0;
 }
+
 void board::dump(int indent)
 {
     for (uint8_t y=5; y<6; y--) {  // rolls round because unsigned
@@ -94,8 +82,4 @@ void board::dump(int indent)
         cout << endl;
     }
     cout << string(indent, ' ') << "0123456" << endl;
-//    for (uint8_t x=0; x<7; x++) {
-//         cout << static_cast<int>(heights[x]);
-//    }
-//    cout << endl;
 }

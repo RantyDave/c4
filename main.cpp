@@ -14,9 +14,9 @@ int main(int argc, const char * argv[])
     uint32_t root_node=0;
     
     bool blue=true;
-    for (unsigned int n=0; n<42; n++) {
+    for (unsigned int n=0; n<42; n++) {  // max of 7*6=42 moves
         std::cout << "examining options for " << (blue ? "blue" : "red") << std::endl;
-        score_options options;
+        score_options options;  // options need to be reset to zero every time, don't recycle this object
         srch.options(&options, root_node, blue);
         uint8_t move=options.best_move(blue, ordering);
         std::cout << "taking move=" << static_cast<int>(move) << std::endl;

@@ -19,18 +19,21 @@ search_tree::search_tree(const board& brd)
 
 search_tree::~search_tree()
 {
+    // just ignore the individual node objects
+    // placement delete is a right pita anyway
     free(nodes);
 }
 
+// public interface onto the recursive call, prevents caller from doing unfortunate things
 void search_tree::options(score_options* in, uint32_t root_node_slot, bool blue, uint32_t depth)
 {
     recurse_options(in, root_node_slot, blue, depth, -1, 0);
 }
 
-// root_eval_move is -1 if called from the 'actual' move
+// root_eval_move is -1 if evaluating the next move (and not one deeper in the tree)
 void search_tree::recurse_options(score_options* in, uint32_t node_slot, bool blue, uint32_t depth, int root_eval_move, uint32_t layer)
 {
-    search_node* node=&nodes[node_slot];
+    search_node* node=node_at(node_slot);
     
     // find or spawn a new node for each possible move
     uint32_t child_node_slot=0;
@@ -51,18 +54,18 @@ void search_tree::recurse_options(score_options* in, uint32_t node_slot, bool bl
             child_node_slot=find_empty_slot();
 //            std::cout << "allocating: " << child_node_slot << std::endl;
             node->fwd_id[eval_mve]=child_node_slot;
-            search_node* new_node=new(&nodes[child_node_slot]) search_node(node->brd);
+            search_node* new_node=new(&nodes[child_node_slot]) search_node(node->brd);  // placement new means node is initialised and board is bitwise cloned
             node_slot_available[child_node_slot]=0;
             new_node->brd.move(eval_mve, blue);
-            new_node->board_score=new_node->brd.score();
+            new_node->board_score=new_node->brd.score();  // cache the score
         }
         
         // find the score for this move
         int child_board_score;
-        search_node* child_node=&nodes[child_node_slot];
+        search_node* child_node=node_at(child_node_slot);
         child_board_score=child_node->board_score;
-        int this_score=child_board_score >> (layer*4);
-        if (this_score!=0) {
+        int this_score=child_board_score >> (layer*4);  // each layer has it's result divided by 16 so a deeper result can't mask one that comes before it.
+        if (this_score) {
 //            std::cout << std::string(layer*2, ' ') << "child_node=" << child_node_slot << " layer=" << layer << " root_eval_move=" << root_eval_move << " child_board_score=" << child_board_score << " score=" << this_score << std::endl;
 //            child_node->brd.dump(layer*2);
             in->scores[this_root_eval_move]+=this_score;
@@ -96,7 +99,7 @@ uint32_t search_tree::prune_from(uint32_t node_slot, uint8_t except)
         prune_from(child_node_slot);  // delete child node
     }
     
-    //free this allocation
+    //free this allocation - no placement delete, c'est la vie
     node_slot_available[node_slot]=1;
 //    std::cout << "freeing: " << node_slot << std::endl;
 //    if (new_root_node!=0) std::cout << "new root node: " << new_root_node << std::endl;
@@ -125,13 +128,14 @@ uint32_t search_tree::find_empty_slot()
 
 search_orders::search_orders()
 {
+    // actually seed the rng
     srand(static_cast<unsigned int>(time(NULL)));
     
-    //use 8 different search orders so we get a randomised tie breaker
+    // use 8 different search orders so we get a randomised tie breaker
     for (int iter=0; iter<8; iter++) {
         bool picked[] {false, false, false, false, false, false, false};
         for (int pick=0; pick<7; pick++) {
-            //keep trying until we pick an unused one
+            // keep trying until we pick an unused one
             int this_one;
             do {
                 this_one=rand() % 7;
@@ -149,12 +153,13 @@ uint8_t score_options::best_move(bool blue, const search_orders& ordering)
     const uint8_t* search_id=ordering.search_order[pattern];
     
     // pick the best score
-    int best_score=blue ? -INT_MAX : INT_MAX;
+    // the randomised search order creates a randomised tie breaker at zero cost
+    int best_score=blue ? -INT_MAX : INT_MAX;  // i.e. worst case that must be bettered
     int best_move=-1;
     for (uint32_t idx=0; idx<7; idx++) {
         uint8_t score_idx=search_id[idx];
-        if (!valid[score_idx]) continue;
-        if ((blue and (scores[score_idx]>best_score)) or (!blue and (scores[score_idx]<best_score))) {
+        if (!valid[score_idx]) continue;  // can't make this move
+        if ((blue and (scores[score_idx]>best_score)) or (!blue and (scores[score_idx]<best_score))) {  // an improved result
             best_score=scores[score_idx];
             best_move=score_idx;
         }
