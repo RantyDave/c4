@@ -3,15 +3,123 @@
 #include <ctime>
 #include "search.hpp"
 #include "board.hpp"
-#include "solutions.hpp"
 
-move_search::move_search()
+search_tree::search_tree(const board& brd)
+{
+    //allocate enough space to have a million boards in the prediction cache at any one time
+    nodes=static_cast<search_node*>(malloc(sizeof(search_node)*1048576));
+    
+    //mark all the slots as being available
+    memset(static_cast<void*>(node_slot_available), 1, 1048576);
+    
+    //create the root node
+    new(&nodes[0]) search_node(brd);
+    node_slot_available[0]=0;
+}
+
+search_tree::~search_tree()
+{
+    free(nodes);
+}
+
+void search_tree::options(score_options* in, uint32_t root_node_slot, bool blue, uint32_t depth)
+{
+    recurse_options(in, root_node_slot, blue, depth, -1, 0);
+}
+
+// root_eval_move is -1 if called from the 'actual' move
+void search_tree::recurse_options(score_options* in, uint32_t node_slot, bool blue, uint32_t depth, int root_eval_move, uint32_t layer)
+{
+    search_node* node=&nodes[node_slot];
+    
+    // find or spawn a new node for each possible move
+    uint32_t child_node_slot=0;
+    uint32_t allocation_hint=0;
+    for (int eval_mve=0; eval_mve<7; eval_mve++) {
+        // ensure we 'credit' results to the move at the base of the tree
+        int this_root_eval_move=(root_eval_move==-1) ? eval_mve : root_eval_move;
+        
+        // bin out if the column is full so we can't make this move anyway
+        if (node->brd.full(eval_mve)) {
+            // mark as invalid if it's the root move that can't be made
+            if (root_eval_move==-1) in->valid[this_root_eval_move]=false;
+            continue;
+        }
+        
+        // ensure the child node has been created
+        child_node_slot=node->fwd_id[eval_mve];
+        if (child_node_slot==-1) {  // haven't created the child node yet
+            child_node_slot=find_empty_slot(allocation_hint);  // last allocation given as a hint
+//            std::cout << "allocating: " << child_node_slot << std::endl;
+            allocation_hint=child_node_slot+1;
+            node->fwd_id[eval_mve]=child_node_slot;
+            search_node* new_node=new(&nodes[child_node_slot]) search_node(node->brd);
+            node_slot_available[child_node_slot]=0;
+            new_node->brd.move(eval_mve, blue);
+            new_node->board_score=new_node->brd.score();
+        }
+        
+        // find the score for this move
+        int child_board_score;
+        search_node* child_node=&nodes[child_node_slot];
+        child_board_score=child_node->board_score;
+        int this_score=child_board_score >> (layer*3);
+        if (this_score!=0) {
+//            std::cout << std::string(layer*2, ' ') << "child_node=" << child_node_slot << " layer=" << layer << " root_eval_move=" << root_eval_move << " child_board_score=" << child_board_score << " score=" << this_score << std::endl;
+//            child_node->brd.dump(layer*2);
+            in->scores[this_root_eval_move]+=this_score;
+            continue;
+        }
+        
+        // if we've not hit a result or the depth limit, try again with the next layer down
+        if (depth) {
+            recurse_options(in, child_node_slot, !blue, depth-1, this_root_eval_move, layer+1);
+        }
+    }
+}
+
+uint32_t search_tree::prune_from(uint32_t node_slot, uint8_t except)
+{
+    search_node* node=&nodes[node_slot];
+    uint32_t new_root_node=0; //only actually gets set if there's a valid except
+    
+    for (uint8_t mve=0; mve<7; mve++) {
+        // not allocated?
+        if (node->fwd_id[mve]==-1) continue;
+        
+        // child node
+        uint32_t child_node_slot=node->fwd_id[mve];
+        if (mve==except) {
+            new_root_node=child_node_slot;  // the new root slot id
+//            std::cout << "keeping: " << new_root_node << std::endl;
+            continue;  // don't nuke it
+        }
+//        std::cout << "recursing: " << node_slot << "-->" << child_node_slot << std::endl;
+        prune_from(child_node_slot);  // delete child node
+    }
+    
+    //free this allocation
+    node_slot_available[node_slot]=1;
+//    if (new_root_node!=0) std::cout << "new root node: " << new_root_node << std::endl;
+    return new_root_node;
+}
+
+uint32_t search_tree::find_empty_slot(uint32_t starting_at)
+{
+    for (uint32_t n=starting_at; n<1048576; n++) {
+        if (node_slot_available[n]) return n;
+    }
+    std::cerr << "Ran out of node slots" << std::endl;
+    exit(1);
+}
+
+search_orders::search_orders()
 {
     srand(static_cast<unsigned int>(time(NULL)));
     
-    //initialise the 8 different search orders
+    //use 8 different search orders so we get a randomised tie breaker
     for (int iter=0; iter<8; iter++) {
-        bool picked[] {false, false, false, false, false, false, false, false};
+        bool picked[] {false, false, false, false, false, false, false};
         for (int pick=0; pick<7; pick++) {
             //keep trying until we pick an unused one
             int this_one;
@@ -24,70 +132,44 @@ move_search::move_search()
     }
 }
 
-search_result move_search::move(bool blue, const board& prev, const scoring_strategy& scores, int depth)
+uint8_t score_options::best_move(bool blue, const search_orders& ordering)
 {
-    // a zero depth move is a no-brainer
-    if (depth==0) {
-        return no_brainer_from(blue, prev, scores);
-    }
+    // pick one of the 8 search orders
+    int pattern=rand() % 8;
+    const uint8_t* search_id=ordering.search_order[pattern];
     
-    // otherwise a layer of search depth
-    int ideal_score=(blue ? INT_MAX : INT_MIN);
-    search_result best(blue);
-    uint8_t* order=search_order[rand() % 8];
-    for (uint8_t iter=0; iter<7; iter++) {
-        uint8_t considered_move=*(order+iter);
-        if (prev.full(considered_move)) continue;
-        
-        // make the move we are contemplating
-        board working(prev);
-//        std::cout << "DEPTH="<< depth << " BLUE=" << blue << "  contemplating-move=" << static_cast<int>(this_move) << std::endl;
-        working.move(considered_move, blue ? board::colour_blue : board::colour_red);
-        
-        // terminate the search if we win
-        if (solutions::win(working)==ideal_score) {
-//            std::cout << "WIN!" << std::endl;
-            return search_result(considered_move, ideal_score);
-        }
-        
-        // make a likely move from the opposition
-        search_result opposition { no_brainer_from(!blue, working, scores) };
-        working.move(opposition.move, blue ? board::colour_red : board::colour_blue); // colour selection is deliberately the wrong way round
-        
-        // contemplate the possible 'move after's
-        search_result best_leaf=move(blue, working, scores, depth-1);
-//        std::cout << "===> leaf-score=" << best_leaf.score << std::endl << std::endl;
-        if ((blue && (best_leaf.score>best.score)) || (!blue && (best_leaf.score<best.score))) {
-            best.move=considered_move;
-            best.score=best_leaf.score;
+    // pick the best score
+    int best_score=blue ? -INT_MAX : INT_MAX;
+    int best_move=-1;
+    for (uint32_t idx=0; idx<7; idx++) {
+        uint8_t score_idx=search_id[idx];
+        if (!valid[score_idx]) continue;
+        if ((blue and (scores[score_idx]>best_score)) or (!blue and (scores[score_idx]<best_score))) {
+            best_score=scores[score_idx];
+            best_move=score_idx;
         }
     }
-//    std::cout << "ACTUAL MOVE=" << static_cast<int>(best.move) << std::endl;
-    return best;
+    return best_move;
 }
 
-search_result move_search::no_brainer_from(bool blue, const board& prev, const scoring_strategy& scores)
+void score_options::dump()
 {
-    //a single depth move, used to find a likely opponent move
-    search_result best(blue);
-    uint8_t* order=search_order[rand() % 8];
-    for (uint8_t iter=0; iter<7; iter++) {
-        uint8_t considered_move=*(order+iter);
-        if (prev.full(considered_move)) continue;
-        
-        board working(prev);
-//        std::cout << "blue=" << blue << " contemplating-no-brainer=" << static_cast<int>(move) << std::endl;
-        working.move(considered_move, blue ? board::colour_blue : board::colour_red);
-        int this_score { solutions::score(working, scores) };
-        if ((blue && (this_score>best.score)) || (!blue && (this_score<best.score))) {
-            best.score=this_score;
-            best.move=considered_move;
-        }
-//        std::cout << std::endl;
-    }
-    
-    return best;
+    for (int n=0; n<7; n++) std::cout << n << "->" << scores[n] << (valid[n] ? " " : "(invalid) ");
+    std::cout << std::endl;
 }
 
-
+void search_tree::dump_from(uint32_t node_slot, uint32_t layer)
+{
+    search_node* node=&nodes[node_slot];
+    std::cout << std::endl << std::string(layer*2, '-') << "slot=" << node_slot << std::endl;
+    node->brd.dump(layer*2);
+    std::cout << std::string(layer*2, ' ') << "score=" << node->board_score << std::endl;
+    for (int mve=0; mve<7; mve++) {
+        if (node->fwd_id[mve]==-1) {
+            continue;
+        }
+        
+        dump_from(node->fwd_id[mve], layer+1);
+    }
+}
 
