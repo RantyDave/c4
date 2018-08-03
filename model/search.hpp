@@ -39,7 +39,8 @@ private:
     void recurse_options(score_options* in, uint32_t root_node_slot, bool blue, uint32_t depth, int root_eval_move, uint32_t layer);
     search_node* nodes;
     uint8_t node_slot_available[1048576];
-    uint32_t find_empty_slot(uint32_t starting_at=0);
+    uint32_t last_slot_allocated { 0 };
+    uint32_t find_empty_slot();
 };
 
 #endif /* search_hpp */

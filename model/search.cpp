@@ -34,7 +34,6 @@ void search_tree::recurse_options(score_options* in, uint32_t node_slot, bool bl
     
     // find or spawn a new node for each possible move
     uint32_t child_node_slot=0;
-    uint32_t allocation_hint=0;
     for (int eval_mve=0; eval_mve<7; eval_mve++) {
         // ensure we 'credit' results to the move at the base of the tree
         int this_root_eval_move=(root_eval_move==-1) ? eval_mve : root_eval_move;
@@ -49,9 +48,8 @@ void search_tree::recurse_options(score_options* in, uint32_t node_slot, bool bl
         // ensure the child node has been created
         child_node_slot=node->fwd_id[eval_mve];
         if (child_node_slot==-1) {  // haven't created the child node yet
-            child_node_slot=find_empty_slot(allocation_hint);  // last allocation given as a hint
+            child_node_slot=find_empty_slot();
 //            std::cout << "allocating: " << child_node_slot << std::endl;
-            allocation_hint=child_node_slot+1;
             node->fwd_id[eval_mve]=child_node_slot;
             search_node* new_node=new(&nodes[child_node_slot]) search_node(node->brd);
             node_slot_available[child_node_slot]=0;
@@ -91,7 +89,7 @@ uint32_t search_tree::prune_from(uint32_t node_slot, uint8_t except)
         uint32_t child_node_slot=node->fwd_id[mve];
         if (mve==except) {
             new_root_node=child_node_slot;  // the new root slot id
-//            std::cout << "keeping: " << new_root_node << std::endl;
+//            std::cout << "keeping: " << child_node_slot << std::endl;
             continue;  // don't nuke it
         }
 //        std::cout << "recursing: " << node_slot << "-->" << child_node_slot << std::endl;
@@ -100,16 +98,28 @@ uint32_t search_tree::prune_from(uint32_t node_slot, uint8_t except)
     
     //free this allocation
     node_slot_available[node_slot]=1;
+//    std::cout << "freeing: " << node_slot << std::endl;
 //    if (new_root_node!=0) std::cout << "new root node: " << new_root_node << std::endl;
     return new_root_node;
 }
 
-uint32_t search_tree::find_empty_slot(uint32_t starting_at)
+uint32_t search_tree::find_empty_slot()
 {
-    for (uint32_t n=starting_at; n<1048576; n++) {
-        if (node_slot_available[n]) return n;
+//    uint32_t iters=0;
+    uint32_t loop_round_at=last_slot_allocated;
+    while (++last_slot_allocated) {
+        if (last_slot_allocated==1048576) last_slot_allocated=0;  // loop round
+        if (node_slot_available[last_slot_allocated]) {
+//            if (iters!=0) std::cout << "find_empty_slot iterations=" << iters << std::endl;
+            return last_slot_allocated;
+        }
+        if (last_slot_allocated==loop_round_at) {
+            std::cerr << "Ran out of node slots" << std::endl;
+            exit(1);
+        }
+//        ++iters;
     }
-    std::cerr << "Ran out of node slots" << std::endl;
+    std::cerr << "Should not be seeing this" << std::endl;
     exit(1);
 }
 
