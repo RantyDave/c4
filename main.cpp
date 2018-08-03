@@ -14,7 +14,7 @@ int main(int argc, const char * argv[])
     uint32_t root_node=0;
     
     bool blue=true;
-    for (unsigned int n=0; n<72; n++) {
+    for (unsigned int n=0; n<42; n++) {
         std::cout << "examining options for " << (blue ? "blue" : "red") << std::endl;
         score_options options;
         srch.options(&options, root_node, blue);
