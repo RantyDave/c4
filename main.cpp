@@ -1,6 +1,5 @@
 #include <iostream>
 #include <cstdint>
-#include <algorithm>
 #include "model/board.hpp"
 #include "model/search.hpp"
 
