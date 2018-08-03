@@ -15,7 +15,7 @@ int main(int argc, const char * argv[])
     
     bool blue=true;
     for (unsigned int n=0; n<72; n++) {
-        std::cout << "examining options blue=" << blue << std::endl;
+        std::cout << "examining options for " << (blue ? "blue" : "red") << std::endl;
         score_options options;
         srch.options(&options, root_node, blue);
         uint8_t move=options.best_move(blue, ordering);
@@ -23,7 +23,7 @@ int main(int argc, const char * argv[])
         root_node=srch.prune_from(root_node, move);
         srch.node_at(root_node)->brd.dump();
         if ((srch.node_at(root_node)->board_score==INT_MAX) or (srch.node_at(root_node)->board_score==-INT_MAX)) {
-            std::cout << "WIN! " << srch.node_at(root_node)->board_score << std::endl;
+            std::cout << (srch.node_at(root_node)->board_score==INT_MAX ? "blue wins" : "red wins") << std::endl;
             break;
         }
         std::cout << std::endl;
