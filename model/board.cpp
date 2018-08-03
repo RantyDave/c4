@@ -22,7 +22,7 @@ void board::move(uint8_t x, bool blue) {
     uint64_t col=blue ? board::colour_blue : board::colour_red;
     filled |= bit_x_y;          // set the filled bit
     colour |= (col & bit_x_y);  // set the colour bit
-    heights[7] = std::max(heights[x], heights[7]);
+    heights[7] = max(heights[x], heights[7]);
 }
 
 // to score, a series of four locations in a row must
@@ -82,7 +82,7 @@ int board::score()
 void board::dump(int indent)
 {
     for (uint8_t y=5; y<6; y--) {  // rolls round because unsigned
-        cout << std::string(indent, ' ');
+        cout << string(indent, ' ');
         for (uint8_t x=0; x<7; x++) {
             uint64_t bit_x_y=bitfor(x, y);
             if (filled & bit_x_y) {
@@ -93,9 +93,9 @@ void board::dump(int indent)
         }
         cout << endl;
     }
-    cout << std::string(indent, ' ');
-    for (uint8_t x=0; x<7; x++) {
-         cout << static_cast<int>(heights[x]);
-    }
-    cout << endl;
+    cout << string(indent, ' ') << "0123456" << endl;
+//    for (uint8_t x=0; x<7; x++) {
+//         cout << static_cast<int>(heights[x]);
+//    }
+//    cout << endl;
 }
