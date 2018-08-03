@@ -61,7 +61,7 @@ void search_tree::recurse_options(score_options* in, uint32_t node_slot, bool bl
         int child_board_score;
         search_node* child_node=&nodes[child_node_slot];
         child_board_score=child_node->board_score;
-        int this_score=child_board_score >> (layer*3);
+        int this_score=child_board_score >> (layer*4);
         if (this_score!=0) {
 //            std::cout << std::string(layer*2, ' ') << "child_node=" << child_node_slot << " layer=" << layer << " root_eval_move=" << root_eval_move << " child_board_score=" << child_board_score << " score=" << this_score << std::endl;
 //            child_node->brd.dump(layer*2);
